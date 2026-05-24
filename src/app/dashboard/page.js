@@ -461,7 +461,7 @@ export default function Dashboard() {
                         }
                       };
                       return (
-                        <div key={ep.id} className="p-4 bg-white border border-zinc-200/80 rounded-xl hover:border-zinc-300 hover:shadow-xs transition-all duration-200 flex items-center justify-between gap-4">
+                        <Link key={ep.id} href={`/dashboard/builder/${ep.id}`} className="p-4 bg-white border border-zinc-200/80 rounded-xl hover:border-zinc-300 hover:shadow-xs transition-all duration-200 flex items-center justify-between gap-4 select-none cursor-pointer">
                           <div className="space-y-1.5">
                             <h3 className="text-xs font-bold text-zinc-800">{ep.name}</h3>
                             <div className="flex items-center gap-2">
@@ -473,7 +473,11 @@ export default function Dashboard() {
                                   /api/v1{ep.path}
                                 </code>
                                 <button
-                                  onClick={() => handleCopyPath(ep.id, ep.path)}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleCopyPath(ep.id, ep.path);
+                                  }}
                                   className="text-zinc-400 hover:text-zinc-700 p-0.5 rounded transition-colors cursor-pointer"
                                   title="Copy full URL"
                                 >
@@ -494,7 +498,7 @@ export default function Dashboard() {
                             </svg>
                             {new Date(ep.created_at).toLocaleDateString()}
                           </div>
-                        </div>
+                        </Link>
                       );
                     })}
                   </div>
