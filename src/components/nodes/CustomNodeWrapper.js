@@ -1,5 +1,5 @@
-import React from "react";
-import { Handle, Position } from "@xyflow/react";
+import React, { useEffect } from "react";
+import { Handle, Position, useUpdateNodeInternals } from "@xyflow/react";
 
 // Crisp SVG Icons matching categories
 const NodeIcon = ({ name, className = "w-4 h-4 text-zinc-600" }) => {
@@ -77,10 +77,16 @@ export default function CustomNodeWrapper({ id, selected, data }) {
   const inputs = data.inputsCount !== undefined ? Number(data.inputsCount) : (template.inputs ?? 0);
   const outputs = data.outputsCount !== undefined ? Number(data.outputsCount) : (template.outputs ?? 0);
 
+  const updateNodeInternals = useUpdateNodeInternals();
+
+  useEffect(() => {
+    updateNodeInternals(id);
+  }, [id, inputs, outputs, updateNodeInternals]);
+
   // Dynamically calculate positions of handles
   const renderHandles = (count, typeOfHandle) => {
     if (!count || count <= 0) return null;
-    return Array.from({ length: count }).map((_, index) => {
+    return Array.from({ length: count }).flatMap((_, index) => {
       // Space them out vertically
       const offsetTop = `${((index + 1) / (count + 1)) * 100}%`;
       const isTarget = typeOfHandle === "target";
@@ -95,37 +101,40 @@ export default function CustomNodeWrapper({ id, selected, data }) {
         label = isTarget ? `p${index}` : "out";
       }
 
-      return (
-        <div key={handleId} className="absolute inset-0 pointer-events-none z-10 group/handle">
-          <Handle
-            type={typeOfHandle}
-            position={position}
-            id={handleId}
-            style={{
-              top: offsetTop,
-              width: "10px",
-              height: "10px",
-              backgroundColor: "#18181b",
-              border: "2px solid #ffffff",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-              zIndex: 10,
-              cursor: "crosshair",
-              pointerEvents: "all"
-            }}
-          />
-          {/* Handle connection point labels */}
-          {label && (
-            <span
-              style={{ top: `calc(${offsetTop} - 7px)` }}
-              className={`absolute text-[8px] font-bold uppercase tracking-wider text-zinc-400 bg-white border border-zinc-200 px-1 rounded-sm shadow-3xs pointer-events-none select-none z-20 ${
-                isTarget ? "left-3" : "right-3"
-              }`}
-            >
-              {label}
-            </span>
-          )}
-        </div>
-      );
+      const elements = [
+        <Handle
+          key={handleId}
+          type={typeOfHandle}
+          position={position}
+          id={handleId}
+          style={{
+            top: offsetTop,
+            width: "10px",
+            height: "10px",
+            backgroundColor: "#18181b",
+            border: "2px solid #ffffff",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+            zIndex: 10,
+            cursor: "crosshair"
+          }}
+        />
+      ];
+
+      if (label) {
+        elements.push(
+          <span
+            key={`${handleId}-label`}
+            style={{ top: `calc(${offsetTop} - 7px)` }}
+            className={`absolute text-[8px] font-bold uppercase tracking-wider text-zinc-400 bg-white border border-zinc-200 px-1 rounded-sm shadow-3xs pointer-events-none select-none z-20 ${
+              isTarget ? "left-3" : "right-3"
+            }`}
+          >
+            {label}
+          </span>
+        );
+      }
+
+      return elements;
     });
   };
 
