@@ -333,7 +333,6 @@ export default function BuilderPage() {
       t.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Group templates by category
   const categories = ["Trigger", "Database", "Logic", "Integrations"];
 
   if (loading) {
@@ -365,6 +364,8 @@ export default function BuilderPage() {
     );
   }
 
+  const backHref = endpoint?.project_id ? `/dashboard/projects/${endpoint.project_id}` : "/dashboard";
+
   return (
     <div className="h-screen bg-zinc-50 text-zinc-900 font-sans flex flex-col relative select-none overflow-hidden">
       
@@ -372,7 +373,7 @@ export default function BuilderPage() {
       <header className="relative z-50 border-b border-zinc-200 bg-white/80 backdrop-blur-md px-6 py-3 flex items-center justify-between shadow-2xs">
         <div className="flex items-center gap-4">
           <Link
-            href="/dashboard"
+            href={backHref}
             className="flex items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-900 border border-zinc-200 hover:border-zinc-300 px-3 py-1.5 rounded-xl bg-white shadow-3xs transition-all active:scale-95"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">

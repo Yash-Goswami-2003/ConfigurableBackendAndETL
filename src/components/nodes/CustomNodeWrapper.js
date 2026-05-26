@@ -87,10 +87,12 @@ export default function CustomNodeWrapper({ id, selected, data }) {
       const handleId = isTarget ? `in-${index}` : `out-${index}`;
       const position = isTarget ? Position.Left : Position.Right;
 
-      // Output branch labels for conditional node
+      // Output branch labels for conditional node or port labels for jsRunner
       let label = "";
       if (type === "conditionalRouter" && !isTarget) {
         label = index === 0 ? "True" : "False";
+      } else if (type === "jsRunner" || type === "javascriptRunner") {
+        label = isTarget ? `p${index}` : "out";
       }
 
       return (

@@ -6,13 +6,13 @@ if (!databaseUrl) {
   throw new Error("DATABASE_URL is not set in environment variables.");
 }
 
-// Initialize the postgres client. Neon requires SSL, so we make sure the connection parameters are passed appropriately.
+// Initialize default connection pool
 const sql = postgres(databaseUrl, {
   ssl: "require",
-  max: 10, // Max connection pool count
+  max: 10,
 });
 
-// Helper to ensure the organizations, users, endpoints, and posts tables exist
+// Helper to ensure all tables exist
 export async function initDb() {
   try {
     // 1. Create organisations table
@@ -24,7 +24,19 @@ export async function initDb() {
       );
     `;
 
-    // 2. Create users table
+    // 2. Create projects table
+    await sql`
+      CREATE TABLE IF NOT EXISTS projects (
+        id SERIAL PRIMARY KEY,
+        organisation_id INTEGER REFERENCES organisations(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        postgres_connection TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `;
+
+    // 3. Create users table
     await sql`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -35,7 +47,7 @@ export async function initDb() {
       );
     `;
 
-    // Alter table users to ensure it has organisation_id and role columns (handles migration if users table existed)
+    // Alter table users to ensure it has organisation_id and role columns
     await sql`
       ALTER TABLE users ADD COLUMN IF NOT EXISTS organisation_id INTEGER REFERENCES organisations(id) ON DELETE SET NULL;
     `;
@@ -43,11 +55,12 @@ export async function initDb() {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'member';
     `;
 
-    // 3. Create endpoints table
+    // 4. Create endpoints table
     await sql`
       CREATE TABLE IF NOT EXISTS endpoints (
         id SERIAL PRIMARY KEY,
         organisation_id INTEGER REFERENCES organisations(id) ON DELETE CASCADE,
+        project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
         name VARCHAR(255) NOT NULL,
         method VARCHAR(10) DEFAULT 'GET',
         path VARCHAR(255) NOT NULL,
@@ -56,7 +69,12 @@ export async function initDb() {
       );
     `;
 
-    // 4. Create posts table
+    // Alter table endpoints to ensure it has project_id column
+    await sql`
+      ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE;
+    `;
+
+    // 5. Create posts table
     await sql`
       CREATE TABLE IF NOT EXISTS posts (
         id SERIAL PRIMARY KEY,

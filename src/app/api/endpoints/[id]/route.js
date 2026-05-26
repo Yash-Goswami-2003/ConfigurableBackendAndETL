@@ -10,7 +10,7 @@ export async function GET(request, { params }) {
 
     await initDb();
     const results = await sql`
-      SELECT id, name, method, path, configuration, organisation_id, created_at 
+      SELECT id, name, method, path, configuration, organisation_id, project_id, created_at 
       FROM endpoints 
       WHERE id = ${id} 
       LIMIT 1;
@@ -74,7 +74,7 @@ export async function PUT(request, { params }) {
       UPDATE endpoints
       SET name = ${finalName}, method = ${finalMethod}, path = ${finalPath}, configuration = ${finalConfig}
       WHERE id = ${id}
-      RETURNING id, name, method, path, configuration;
+      RETURNING id, name, method, path, configuration, project_id;
     `;
 
     return NextResponse.json({

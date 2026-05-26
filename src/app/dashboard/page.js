@@ -7,10 +7,10 @@ import { useRouter } from "next/navigation";
 export default function Dashboard() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState(null);
-  const [activeTab, setActiveTab] = useState("endpoints"); // 'endpoints', 'docs', 'posts', 'members'
+  const [activeTab, setActiveTab] = useState("projects"); // 'projects', 'docs', 'posts', 'members'
   
   // Data lists
-  const [endpoints, setEndpoints] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [posts, setPosts] = useState([]);
   const [members, setMembers] = useState([]);
 
@@ -22,14 +22,13 @@ export default function Dashboard() {
   const [actionSuccess, setActionSuccess] = useState("");
 
   // Modals / Form toggles
-  const [showEndpointModal, setShowEndpointModal] = useState(false);
+  const [showProjectModal, setShowProjectModal] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
   const [showMemberForm, setShowMemberForm] = useState(false);
 
   // New item form inputs
-  const [newEndpointName, setNewEndpointName] = useState("");
-  const [newEndpointMethod, setNewEndpointMethod] = useState("GET");
-  const [newEndpointPath, setNewEndpointPath] = useState("");
+  const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectDescription, setNewProjectDescription] = useState("");
   
   const [newPostTitle, setNewPostTitle] = useState("");
   const [newPostContent, setNewPostContent] = useState("");
@@ -71,11 +70,11 @@ export default function Dashboard() {
       setActionSuccess("");
       try {
         const orgId = currentUser.organisationId;
-        if (activeTab === "endpoints") {
-          const res = await fetch(`/api/endpoints?orgId=${orgId}`);
+        if (activeTab === "projects") {
+          const res = await fetch(`/api/projects?orgId=${orgId}`);
           if (res.ok) {
             const data = await res.json();
-            setEndpoints(data.endpoints || []);
+            setProjects(data.projects || []);
           }
         } else if (activeTab === "posts") {
           const res = await fetch(`/api/posts?orgId=${orgId}`);
@@ -107,22 +106,20 @@ export default function Dashboard() {
     }
   };
 
-  // 3. Create new endpoint logic
-  const handleCreateEndpoint = async (e) => {
+  // 3. Create new project logic
+  const handleCreateProject = async (e) => {
     e.preventDefault();
     setActionLoading(true);
     setActionError("");
     setActionSuccess("");
 
     try {
-      const res = await fetch("/api/endpoints", {
+      const res = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: newEndpointName,
-          method: newEndpointMethod,
-          path: newEndpointPath,
-          configuration: { description: "Visual REST layout created in Weave Dashboard" },
+          name: newProjectName,
+          description: newProjectDescription,
           orgId: currentUser.organisationId
         })
       });
@@ -130,13 +127,13 @@ export default function Dashboard() {
       const data = await res.json();
 
       if (!res.ok) {
-        setActionError(data.error || "Failed to create endpoint.");
+        setActionError(data.error || "Failed to create project.");
       } else {
-        setActionSuccess("Endpoint created successfully!");
-        setEndpoints([data.endpoint, ...endpoints]);
-        setNewEndpointName("");
-        setNewEndpointPath("");
-        setShowEndpointModal(false);
+        setActionSuccess("Project created successfully!");
+        setProjects([data.project, ...projects]);
+        setNewProjectName("");
+        setNewProjectDescription("");
+        setShowProjectModal(false);
       }
     } catch (err) {
       setActionError("Server connection error. Please try again.");
@@ -335,7 +332,7 @@ export default function Dashboard() {
             
             <nav className="space-y-1">
               {[
-                { id: "endpoints", label: "Endpoints List", icon: (
+                { id: "projects", label: "Projects Console", icon: (
                   <svg className="w-4 h-4 shrink-0 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
                     <polyline points="4 17 10 11 4 5" />
                     <line x1="12" y1="19" x2="20" y2="19" />
@@ -412,110 +409,89 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Tab 1: Endpoints Config List */}
-          {activeTab === "endpoints" && (
-            <div className="flex-1 flex flex-col justify-between">
+          {/* Tab 1: Projects Config List */}
+          {activeTab === "projects" && (
+            <div className="flex-1 flex flex-col justify-between text-left">
               
               <div className="space-y-6">
                 <div className="flex justify-between items-center border-b border-zinc-100 pb-4">
                   <div>
-                    <h2 className="text-base font-bold text-zinc-900">Configured API Endpoints</h2>
-                    <p className="text-xs text-zinc-400">Manage your active visual backend routes</p>
+                    <h2 className="text-base font-bold text-zinc-900">Projects Console</h2>
+                    <p className="text-xs text-zinc-400">Manage your containerized microservices and database connectors</p>
                   </div>
                   <button 
-                    onClick={() => setShowEndpointModal(true)}
+                    onClick={() => setShowProjectModal(true)}
                     className="text-xs font-semibold px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl transition-all duration-150 cursor-pointer shadow-xs active:scale-95 flex items-center gap-1.5"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                     </svg>
-                    Create New
+                    New Project
                   </button>
                 </div>
 
                 {loadingData ? (
-                  <div className="py-12 text-center text-xs text-zinc-400 font-medium">Loading endpoints...</div>
-                ) : endpoints.length === 0 ? (
+                  <div className="py-12 text-center text-xs text-zinc-400 font-medium">Loading projects...</div>
+                ) : projects.length === 0 ? (
                   <div className="py-12 border border-dashed border-zinc-200 rounded-2xl text-center bg-zinc-50/50">
                     <svg className="mx-auto h-8 w-8 text-zinc-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <h3 className="text-xs font-bold text-zinc-700">No endpoints created yet</h3>
-                    <p className="text-[11px] text-zinc-400 mt-1">Configure your first visual data compiler now.</p>
+                    <h3 className="text-xs font-bold text-zinc-700">No projects created yet</h3>
+                    <p className="text-[11px] text-zinc-400 mt-1">Create your first containerized project to begin configuring API endpoints.</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-3">
-                    {endpoints.map((ep) => {
-                      const getMethodStyle = (m) => {
-                        switch (m?.toUpperCase()) {
-                          case "GET":
-                            return "bg-blue-50 text-blue-700 border-blue-100";
-                          case "POST":
-                            return "bg-emerald-50 text-emerald-700 border-emerald-100";
-                          case "PUT":
-                            return "bg-amber-50 text-amber-700 border-amber-100";
-                          case "DELETE":
-                            return "bg-rose-50 text-rose-700 border-rose-100";
-                          default:
-                            return "bg-zinc-50 text-zinc-600 border-zinc-200";
-                        }
-                      };
-                      return (
-                        <Link key={ep.id} href={`/dashboard/builder/${ep.id}`} className="p-4 bg-white border border-zinc-200/80 rounded-xl hover:border-zinc-300 hover:shadow-xs transition-all duration-200 flex items-center justify-between gap-4 select-none cursor-pointer">
-                          <div className="space-y-1.5">
-                            <h3 className="text-xs font-bold text-zinc-800">{ep.name}</h3>
-                            <div className="flex items-center gap-2">
-                              <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded border ${getMethodStyle(ep.method)}`}>
-                                {ep.method}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {projects.map((p) => (
+                      <Link 
+                        key={p.id} 
+                        href={`/dashboard/projects/${p.id}`} 
+                        className="p-5 bg-white border border-zinc-200/80 rounded-2xl hover:border-zinc-400 hover:shadow-xs transition-all duration-200 flex flex-col justify-between gap-4 cursor-pointer select-none"
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-xs font-extrabold text-zinc-800 group-hover:text-zinc-950">{p.name}</h3>
+                            {p.postgres_connection ? (
+                              <span className="text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                DB Connected
                               </span>
-                              <div className="flex items-center gap-1.5 bg-zinc-50 border border-zinc-200/50 px-2 py-0.5 rounded-lg group/code">
-                                <code className="text-[10px] font-mono text-zinc-500">
-                                  /api/v1{ep.path}
-                                </code>
-                                <button
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleCopyPath(ep.id, ep.path);
-                                  }}
-                                  className="text-zinc-400 hover:text-zinc-700 p-0.5 rounded transition-colors cursor-pointer"
-                                  title="Copy full URL"
-                                >
-                                  {copiedId === ep.id ? (
-                                    <span className="text-[9px] font-semibold text-emerald-600">Copied!</span>
-                                  ) : (
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 7.5V6.108c0-1.135.845-2.098 1.976-2.192.373-.03.748-.057 1.123-.08M15.75 18H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08M15.75 18.75v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5A3.375 3.375 0 006.375 7.5H5.25m11.9-3.664A2.251 2.251 0 0015 2.25h-1.5a2.251 2.251 0 00-2.15 1.586m5.8 0c.065.21.1.433.1.664v.75h-6V4.5c0-.231.035-.454.1-.664M6.75 7.5H4.875c-.621 0-1.125.504-1.125 1.125v12c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V16.5a9 9 0 00-9-9z" />
-                                    </svg>
-                                  )}
-                                </button>
-                              </div>
-                            </div>
+                            ) : (
+                              <span className="text-[9px] font-bold bg-zinc-50 text-zinc-400 border border-zinc-200 px-2 py-0.5 rounded-lg">
+                                No DB Connector
+                              </span>
+                            )}
                           </div>
-                          <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-mono">
+                          <p className="text-[11.5px] text-zinc-400 leading-normal line-clamp-2">
+                            {p.description || "No description provided."}
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t border-zinc-100 text-[10px] text-zinc-400 font-mono">
+                          <span>ID: {p.id}</span>
+                          <span className="flex items-center gap-1">
                             <svg className="w-3.5 h-3.5 text-zinc-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            {new Date(ep.created_at).toLocaleDateString()}
-                          </div>
-                        </Link>
-                      );
-                    })}
+                            {new Date(p.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </Link>
+                    ))}
                   </div>
                 )}
               </div>
 
-              {/* Add Endpoint Modal */}
-              {showEndpointModal && (
+              {/* Add Project Modal */}
+              {showProjectModal && (
                 <div className="fixed inset-0 bg-zinc-950/40 backdrop-blur-xs flex items-center justify-center z-50 animate-fade-in">
                   <div className="bg-white border border-zinc-200 rounded-2xl p-6 w-full max-w-md shadow-xl mx-4 transition-all">
                     <div className="flex justify-between items-start mb-4">
                       <div>
-                        <h3 className="text-sm font-bold text-zinc-900 mb-0.5">Configure New API Endpoint</h3>
-                        <p className="text-[11px] text-zinc-400">Set name, HTTP method, and path rules below</p>
+                        <h3 className="text-sm font-bold text-zinc-900 mb-0.5">Configure New Project</h3>
+                        <p className="text-[11px] text-zinc-400">Organize endpoints and connection secrets</p>
                       </div>
                       <button
-                        onClick={() => setShowEndpointModal(false)}
+                        onClick={() => setShowProjectModal(false)}
                         className="text-zinc-400 hover:text-zinc-700 p-1 rounded-lg hover:bg-zinc-50 transition-colors cursor-pointer"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -524,51 +500,34 @@ export default function Dashboard() {
                       </button>
                     </div>
                     
-                    <form onSubmit={handleCreateEndpoint} className="space-y-4">
+                    <form onSubmit={handleCreateProject} className="space-y-4">
                       <div>
-                        <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Endpoint Name</label>
+                        <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Project Name</label>
                         <input
                           required
                           type="text"
-                          value={newEndpointName}
-                          onChange={(e) => setNewEndpointName(e.target.value)}
-                          placeholder="Fetch User Analytics"
-                          className="w-full text-xs bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 outline-none focus:border-zinc-900 focus:bg-white focus:shadow-2xs transition-all"
+                          value={newProjectName}
+                          onChange={(e) => setNewProjectName(e.target.value)}
+                          placeholder="e.g. E-Commerce Backend"
+                          className="w-full text-xs bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 outline-none focus:border-zinc-900 focus:bg-white focus:shadow-2xs transition-all font-medium"
                         />
                       </div>
 
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="col-span-1">
-                          <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Method</label>
-                          <select
-                            value={newEndpointMethod}
-                            onChange={(e) => setNewEndpointMethod(e.target.value)}
-                            className="w-full text-xs bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 outline-none focus:border-zinc-900 focus:bg-white transition-all appearance-none"
-                            style={{ backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2371717a'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/></svg>")`, backgroundPosition: 'right 12px center', backgroundSize: '12px', backgroundRepeat: 'no-repeat' }}
-                          >
-                            <option value="GET">GET</option>
-                            <option value="POST">POST</option>
-                            <option value="PUT">PUT</option>
-                            <option value="DELETE">DELETE</option>
-                          </select>
-                        </div>
-                        <div className="col-span-2">
-                          <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Route Path</label>
-                          <input
-                            required
-                            type="text"
-                            value={newEndpointPath}
-                            onChange={(e) => setNewEndpointPath(e.target.value)}
-                            placeholder="/users/:id/summary"
-                            className="w-full text-xs bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 outline-none focus:border-zinc-900 focus:bg-white focus:shadow-2xs transition-all font-mono"
-                          />
-                        </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Description</label>
+                        <textarea
+                          rows={3}
+                          value={newProjectDescription}
+                          onChange={(e) => setNewProjectDescription(e.target.value)}
+                          placeholder="What is this project about?"
+                          className="w-full text-xs bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 outline-none focus:border-zinc-900 focus:bg-white focus:shadow-2xs transition-all resize-none"
+                        />
                       </div>
 
                       <div className="flex justify-end gap-2 pt-3 border-t border-zinc-100">
                         <button
                           type="button"
-                          onClick={() => setShowEndpointModal(false)}
+                          onClick={() => setShowProjectModal(false)}
                           className="text-[11px] font-semibold px-4 py-2 border border-zinc-200 hover:bg-zinc-50 rounded-xl transition-all cursor-pointer"
                         >
                           Cancel
@@ -579,7 +538,7 @@ export default function Dashboard() {
                           className="text-[11px] font-semibold px-4 py-2 bg-zinc-900 text-white hover:bg-zinc-800 disabled:bg-zinc-400 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
                         >
                           {actionLoading && <span className="w-3 h-3 rounded-full border-2 border-white border-t-transparent animate-spin" />}
-                          Save Configuration
+                          Create Project
                         </button>
                       </div>
                     </form>

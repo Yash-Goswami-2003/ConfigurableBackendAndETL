@@ -5,18 +5,30 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const orgId = searchParams.get("orgId");
+    const projectId = searchParams.get("projectId");
 
-    if (!orgId) {
-      return NextResponse.json({ error: "Organization ID is required" }, { status: 400 });
+    if (!orgId && !projectId) {
+      return NextResponse.json({ error: "Organization ID or Project ID is required" }, { status: 400 });
     }
 
     await initDb();
-    const endpoints = await sql`
-      SELECT id, name, method, path, configuration, created_at 
-      FROM endpoints 
-      WHERE organisation_id = ${orgId} 
-      ORDER BY created_at DESC;
-    `;
+
+    let endpoints = [];
+    if (projectId) {
+      endpoints = await sql`
+        SELECT id, name, method, path, configuration, project_id, created_at 
+        FROM endpoints 
+        WHERE project_id = ${projectId} 
+        ORDER BY created_at DESC;
+      `;
+    } else {
+      endpoints = await sql`
+        SELECT id, name, method, path, configuration, project_id, created_at 
+        FROM endpoints 
+        WHERE organisation_id = ${orgId} 
+        ORDER BY created_at DESC;
+      `;
+    }
 
     return NextResponse.json({ endpoints }, { status: 200 });
   } catch (error) {
@@ -27,7 +39,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const { name, method, path, configuration, orgId } = await request.json();
+    const { name, method, path, configuration, orgId, projectId } = await request.json();
 
     if (!name || !name.trim()) {
       return NextResponse.json({ error: "Endpoint name is required" }, { status: 400 });
@@ -50,9 +62,9 @@ export async function POST(request) {
     }
 
     const [newEndpoint] = await sql`
-      INSERT INTO endpoints (name, method, path, configuration, organisation_id)
-      VALUES (${name.trim()}, ${method || "GET"}, ${path.trim()}, ${configuration || {}}, ${orgId})
-      RETURNING id, name, method, path, created_at;
+      INSERT INTO endpoints (name, method, path, configuration, organisation_id, project_id)
+      VALUES (${name.trim()}, ${method || "GET"}, ${path.trim()}, ${configuration || {}}, ${orgId}, ${projectId || null})
+      RETURNING id, name, method, path, project_id, created_at;
     `;
 
     return NextResponse.json({

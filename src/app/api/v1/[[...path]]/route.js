@@ -1,5 +1,28 @@
 import { NextResponse } from "next/server";
 import sql, { initDb } from "@/lib/db";
+import postgres from "postgres";
+
+// Global cache for dynamically created PostgreSQL client connection pools
+const dynamicPools = new Map();
+
+function getDynamicPool(connectionString) {
+  if (!connectionString || !connectionString.trim()) return null;
+  const key = connectionString.trim();
+  if (dynamicPools.has(key)) {
+    return dynamicPools.get(key);
+  }
+  try {
+    const client = postgres(key, {
+      ssl: key.includes("localhost") || key.includes("127.0.0.1") ? false : "require",
+      max: 5,
+    });
+    dynamicPools.set(key, client);
+    return client;
+  } catch (err) {
+    console.error("Failed to initialize dynamic Postgres client pool:", err);
+    throw err;
+  }
+}
 
 // Helper to extract function parameter names
 function getParamNames(fn) {
@@ -21,8 +44,8 @@ function getParamNames(fn) {
   return [];
 }
 
-// Helper to evaluate javascript inside context variables (supports direct statements & arrow functions)
-async function executeJS(code, context) {
+// Helper to evaluate javascript inside context variables (supports direct statements, arrow functions & destructuring)
+async function executeJS(code, context, argsObject = {}) {
   try {
     const trimmed = code.trim();
     const isArrow = /^(async\s+)?(\([^)]*\)|[a-zA-Z_$][a-zA-Z0-9_$]*)\s*=>/.test(trimmed);
@@ -35,6 +58,15 @@ async function executeJS(code, context) {
     if (isArrow || isFunction || isParenthesizedFunction) {
       // Evaluate function string to function object
       const fn = new Function(`return (${trimmed})`)();
+      
+      const isDestructured = /^(async\s+)?\(\s*\{/.test(trimmed) || 
+                             /^(async\s+)?function\s*[^(]*\(\s*\{/.test(trimmed) ||
+                             /^\(\s*(async\s+)?\(\s*\{/.test(trimmed);
+                             
+      if (isDestructured) {
+        return await fn(argsObject);
+      }
+
       const params = getParamNames(fn);
       const args = params.map(p => context[p]);
       return await fn(...args);
@@ -132,10 +164,11 @@ async function handleRequest(request, params, method) {
 
     // 1. Fetch matching visual backend endpoint configuration
     const endpoints = await sql`
-      SELECT id, name, method, path, configuration 
-      FROM endpoints 
-      WHERE UPPER(method) = ${method.toUpperCase()} 
-        AND TRIM(BOTH '/' FROM path) = ${cleanPath}
+      SELECT e.id, e.name, e.method, e.path, e.configuration, p.postgres_connection 
+      FROM endpoints e
+      LEFT JOIN projects p ON e.project_id = p.id
+      WHERE UPPER(e.method) = ${method.toUpperCase()} 
+        AND TRIM(BOTH '/' FROM e.path) = ${cleanPath}
       LIMIT 1;
     `;
 
@@ -214,8 +247,17 @@ async function handleRequest(request, params, method) {
           
           console.log(`Executing Postgres query: ${parameterizedSql} with params:`, params);
           
-          // Run statement directly against connection pool with parameters
-          const queryResult = await sql.unsafe(parameterizedSql, params);
+          // Run statement against dynamic connection pool or fallback
+          let queryResult;
+          const connString = endpoint.postgres_connection;
+          if (connString) {
+            console.log("Using project-specific PostgreSQL database connector...");
+            const dynamicSql = getDynamicPool(connString);
+            queryResult = await dynamicSql.unsafe(parameterizedSql, params);
+          } else {
+            console.log("No connector connection string found; falling back to Weave default database...");
+            queryResult = await sql.unsafe(parameterizedSql, params);
+          }
           nodeResult = { result: queryResult };
         } 
         else if (nodeType === "apiCall") {
@@ -265,33 +307,48 @@ async function handleRequest(request, params, method) {
           const incomingEdges = edges.filter(e => e.target === nodeId);
           const nodeContext = { ...context };
 
-          const inputsCount = currentNode.data?.inputsCount || 1;
-          for (let i = 0; i < inputsCount; i++) {
-            const handleId = `in-${i}`;
-            const edge = incomingEdges.find(e => e.targetHandle === handleId);
-            if (edge) {
-              nodeContext[`input${i}`] = context[edge.source];
-              nodeContext[`input_${i}`] = context[edge.source];
-            } else {
-              nodeContext[`input${i}`] = null;
-              nodeContext[`input_${i}`] = null;
-            }
-          }
-
+          // Parse inputsConfig mapping or values
+          let portMapping = {};
+          let customValues = {};
           if (currentNode.data?.inputsConfig) {
             try {
               const interpolatedJSON = interpolate(currentNode.data.inputsConfig, context);
-              const customInputs = JSON.parse(interpolatedJSON);
-              for (const [key, val] of Object.entries(customInputs)) {
-                nodeContext[key] = val;
+              const parsed = JSON.parse(interpolatedJSON);
+              for (const [key, val] of Object.entries(parsed)) {
+                if (/^p\d+$/.test(key)) {
+                  portMapping[key] = val;
+                } else {
+                  customValues[key] = val;
+                }
               }
             } catch (e) {
               console.error("Failed to parse inputsConfig JSON:", e);
             }
           }
 
+          const argsObject = {};
+          const inputsCount = currentNode.data?.inputsCount || 1;
+          for (let i = 0; i < inputsCount; i++) {
+            const handleId = `in-${i}`;
+            const portLabel = `p${i}`;
+            const mappedVarName = portMapping[portLabel] || `input${i}`;
+            const edge = incomingEdges.find(e => e.targetHandle === handleId);
+            const val = edge ? context[edge.source] : null;
+            
+            argsObject[mappedVarName] = val;
+            nodeContext[mappedVarName] = val;
+            nodeContext[`input${i}`] = val;
+            nodeContext[`input_${i}`] = val;
+          }
+
+          // Merge any custom non-port values
+          for (const [key, val] of Object.entries(customValues)) {
+            argsObject[key] = val;
+            nodeContext[key] = val;
+          }
+
           const runnerCode = currentNode.data?.code || "() => null;";
-          const runnerOutput = await executeJS(runnerCode, nodeContext);
+          const runnerOutput = await executeJS(runnerCode, nodeContext, argsObject);
           nodeResult = { result: runnerOutput };
         }
         else if (nodeType === "slackNotify") {
